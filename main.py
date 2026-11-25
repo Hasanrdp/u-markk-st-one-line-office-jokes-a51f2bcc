@@ -39,23 +39,22 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def verify(path: str, data: bytes) -> None:
+def verify(path: str, data: bytes) -> bool:
     """Check bytes just written: length, hash, and the gate's character cap."""
     if len(data) != EXPECTED_BYTES:
-        raise SystemExit(
-            f"entry is {len(data)} bytes, expected {EXPECTED_BYTES}"
-        )
+        return False
     if digest(data) != EXPECTED_SHA256:
-        raise SystemExit("entry hash does not match the pinned SHA-256")
+        return False
     if not 1 <= len(data.decode("utf-8")) <= MAX_CHARS:
-        raise SystemExit("entry is outside the 1-199 character gate")
+        return False
     with open(path, "rb") as f:
         on_disk = f.read()
     if on_disk != data:
-        raise SystemExit("read-back mismatch: entry.txt is not the joke")
+        return False
+    return True
 
 
-def main() -> None:
+def main() -> int:
     joke = JOKE
     if not joke.strip():
         raise SystemExit("joke must not be blank")
@@ -66,7 +65,12 @@ def main() -> None:
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "wb") as f:
         f.write(data)
-    verify(OUTPUT_PATH, data)
+    verified = verify(OUTPUT_PATH, data)
+    if not verified:
+        return 1
+    print(joke)
+    print(f"wrote {OUTPUT_PATH}: {len(data)} bytes, sha256 {digest(data)}")
+    return 0
 
 
 def verify_bytes_only(data: bytes) -> None:
@@ -80,4 +84,4 @@ def verify_bytes_only(data: bytes) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
